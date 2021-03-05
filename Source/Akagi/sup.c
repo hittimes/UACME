@@ -3658,7 +3658,7 @@ NTSTATUS supRegisterShellAssoc(
         return ntStatus;
 
     //
-    // Set mode: write custom pluggable protocol handler mark.
+    // Write custom pluggable protocol handler mark.
     //
 
     if (fCustomURIScheme) {
@@ -3679,7 +3679,7 @@ NTSTATUS supRegisterShellAssoc(
     }
 
     //
-    // Set mode: create protocol registry entry.
+    // Create protocol registry entry.
     //
     _strcpy(szBuffer, pszProgId);
     _strcat(szBuffer, T_SHELL_OPEN);
@@ -3726,7 +3726,7 @@ NTSTATUS supRegisterShellAssoc(
     ntStatus = STATUS_UNSUCCESSFUL;
 
     //
-    // Set mode: register protocol within the shell.
+    // Register protocol within the shell.
     //
     if (g_ctx->dwBuildNumber > NT_WIN10_20H2) {
 
@@ -3768,16 +3768,17 @@ NTSTATUS supRegisterShellAssoc(
 }
 
 /*
-* supUnregisterShellAssoc
+* supUnregisterShellAssocEx
 *
 * Purpose:
 *
-* Unregister and remove shell protocol.
+* Unregister and optionally remove shell protocol.
 *
 */
-NTSTATUS supUnregisterShellAssoc(
+NTSTATUS supUnregisterShellAssocEx(
+    _In_ BOOLEAN fResetOnly,
     _In_ LPCWSTR pszExt,
-    _In_ LPCWSTR pszProgId,
+    _In_opt_ LPCWSTR pszProgId,
     _In_ USER_ASSOC_PTR* UserAssocFunc
 )
 {
@@ -3791,9 +3792,11 @@ NTSTATUS supUnregisterShellAssoc(
     if (UserAssocFunc->Valid == FALSE)
         return STATUS_INVALID_PARAMETER_3;
 
-    ntStatus = supOpenClassesKey(NULL, &classesKey);
-    if (!NT_SUCCESS(ntStatus))
-        return ntStatus;
+    if (fResetOnly == FALSE) {
+        ntStatus = supOpenClassesKey(NULL, &classesKey);
+        if (!NT_SUCCESS(ntStatus))
+            return ntStatus;
+    }
 
     switch (g_ctx->dwBuildNumber) {
     case NT_WIN10_19H1:
@@ -3817,9 +3820,53 @@ NTSTATUS supUnregisterShellAssoc(
     if (SUCCEEDED(hr))
         ntStatus = STATUS_SUCCESS;
 
-    supRegDeleteKeyRecursive(classesKey, pszProgId);
-    supRegDeleteKeyRecursive(classesKey, pszExt);
-    NtClose(classesKey);
+    if (fResetOnly == FALSE) {
+        if (pszProgId)
+            supRegDeleteKeyRecursive(classesKey, pszProgId);
+        supRegDeleteKeyRecursive(classesKey, pszExt);
+        NtClose(classesKey);
+    }
 
     return ntStatus;
+}
+
+/*
+* supUnregisterShellAssoc
+*
+* Purpose:
+*
+* Unregister and remove shell protocol.
+*
+*/
+NTSTATUS supUnregisterShellAssoc(
+    _In_ LPCWSTR pszExt,
+    _In_ LPCWSTR pszProgId,
+    _In_ USER_ASSOC_PTR* UserAssocFunc
+)
+{
+    return supUnregisterShellAssocEx(FALSE,
+        pszExt,
+        pszProgId,
+        UserAssocFunc);
+}
+
+/*
+* supResetShellAssoc
+*
+* Purpose:
+*
+* Enable/disable explorer policies.
+*
+*/
+NTSTATUS supResetShellAssoc(
+    _In_ LPCWSTR pszExt,
+    _In_opt_ LPCWSTR pszProgId,
+    _In_ USER_ASSOC_PTR* UserAssocFunc
+)
+{
+    return supUnregisterShellAssocEx(TRUE,
+        pszExt,
+        pszProgId,
+        UserAssocFunc);
+    
 }

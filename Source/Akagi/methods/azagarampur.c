@@ -993,7 +993,7 @@ NTSTATUS ucmMsStoreProtocolMethod(
 
     RtlSecureZeroMemory(&SetUserAssoc, sizeof(USER_ASSOC_PTR));
 
-    hr_init = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+    hr_init = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 
     do {
 
@@ -1015,6 +1015,11 @@ NTSTATUS ucmMsStoreProtocolMethod(
         }
 
         //
+        // Unregister existing.
+        //
+        supResetShellAssoc(T_MSWINDOWSSTORE, NULL, &SetUserAssoc);
+
+        //
         // Register shell protocol.
         //
         MethodResult = supRegisterShellAssoc(T_MSWINDOWSSTORE,
@@ -1028,12 +1033,12 @@ NTSTATUS ucmMsStoreProtocolMethod(
             _strcpy(szBuffer, g_ctx->szSystemDirectory);
             _strcat(szBuffer, WSRESET_EXE);
 
-
-            MethodResult = supRunProcess2(szBuffer, 
-                NULL, 
-                TEXT("open"), 
-                SW_HIDE, 
-                SUPRUNPROCESS_TIMEOUT_DEFAULT) ?
+            MethodResult = supRunProcess2(
+                szBuffer,
+                NULL,
+                TEXT("open"),
+                SW_HIDE,
+                INFINITE) ?
                 STATUS_SUCCESS : STATUS_ACCESS_DENIED;
 
         }

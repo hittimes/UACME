@@ -6,7 +6,7 @@
 *
 *  VERSION:     3.55
 *
-*  DATE:        02 Mar 2021
+*  DATE:        03 Mar 2021
 *
 *  Common header file for the program support routines.
 *
@@ -463,9 +463,20 @@ NTSTATUS supRegisterShellAssoc(
     _In_ LPWSTR lpszPayload,
     _In_ BOOL fCustomURIScheme);
 
+NTSTATUS supUnregisterShellAssocEx(
+    _In_ BOOLEAN fResetOnly,
+    _In_ LPCWSTR pszExt,
+    _In_opt_ LPCWSTR pszProgId,
+    _In_ USER_ASSOC_PTR* UserAssocFunc);
+
 NTSTATUS supUnregisterShellAssoc(
     _In_ LPCWSTR pszExt,
     _In_ LPCWSTR pszProgId,
+    _In_ USER_ASSOC_PTR* UserAssocFunc);
+
+NTSTATUS supResetShellAssoc(
+    _In_ LPCWSTR pszExt,
+    _In_opt_ LPCWSTR pszProgId,
     _In_ USER_ASSOC_PTR* UserAssocFunc);
 
 #ifdef _DEBUG
